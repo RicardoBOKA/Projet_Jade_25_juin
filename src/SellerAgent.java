@@ -33,10 +33,10 @@ public class SellerAgent extends Agent implements Constants {
         fsm.registerState(new LoserBehaviour(this), LOSING);
 
         // Transitions normales
-        fsm.registerTransition(WAITING, PROPOSING, 1);
-        fsm.registerTransition(WAITING, REFUSING, 2);
-        fsm.registerTransition(PROPOSING, WINNING, 1);
-        fsm.registerTransition(PROPOSING, LOSING, 2);
+        fsm.registerTransition(WAITING, PROPOSING, ACLMessage.PROPOSE);
+        fsm.registerTransition(WAITING, REFUSING, ACLMessage.REFUSE);
+        fsm.registerTransition(PROPOSING, WINNING, ACLMessage.ACCEPT_PROPOSAL);
+        fsm.registerTransition(PROPOSING, LOSING, ACLMessage.REJECT_PROPOSAL);
 
         // État final
         fsm.registerLastState(new OneShotBehaviour() {
@@ -73,14 +73,14 @@ public class SellerAgent extends Agent implements Constants {
                         reply.setPerformative(ACLMessage.REFUSE);
                         reply.setContent("rupture de stock");
                         myAgent.send(reply);
-                        exit = 2;
+                        exit = ACLMessage.REFUSE;
                         finished = true;
                     } else {
                         ACLMessage reply = msg.createReply();
                         reply.setPerformative(ACLMessage.PROPOSE);
                         reply.setContent(String.valueOf(price));
                         myAgent.send(reply);
-                        exit = 1;
+                        exit = ACLMessage.PROPOSE;
                         finished = true;
                     }
                 } else {
@@ -92,9 +92,9 @@ public class SellerAgent extends Agent implements Constants {
                         MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL)));
                 if (msg != null) {
                     if (msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
-                        exit = 1;
+                        exit = ACLMessage.ACCEPT_PROPOSAL;
                     } else {
-                        exit = 2;
+                        exit = ACLMessage.REJECT_PROPOSAL;
                     }
                     finished = true;
                 } else {
