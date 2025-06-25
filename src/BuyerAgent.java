@@ -7,6 +7,12 @@ import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.*;
 
+/**
+ * Agent acheteur (Jack) participant au protocole d'enchère à un tour.
+ * Il envoie un CFP puis collecte les réponses avant de choisir la meilleure
+ * proposition.
+ * La FSM comporte trois états : CALLING, WAITING et DECIDING.
+ */
 public class BuyerAgent extends Agent implements Constants {
 
     private final Map<AID, Integer> proposals = new HashMap<>();
@@ -16,6 +22,9 @@ public class BuyerAgent extends Agent implements Constants {
     private static final String WAITING = "WAITING";
     private static final String DECIDING = "DECIDING";
 
+    /**
+     * Construit la FSM et lance le protocole d'enchère.
+     */
     @Override
     protected void setup() {
         FSMBehaviour fsm = new FSMBehaviour(this);
@@ -38,6 +47,9 @@ public class BuyerAgent extends Agent implements Constants {
         addBehaviour(fsm);
     }
 
+    /**
+     * Premier état de l'acheteur : diffusion du CFP à tous les vendeurs.
+     */
     private class CFPBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
@@ -50,6 +62,11 @@ public class BuyerAgent extends Agent implements Constants {
         }
     }
 
+    /**
+     * Collecte toutes les réponses des vendeurs.
+     * Cet état reste actif jusqu'à avoir reçu autant de messages
+     * qu'il y a de vendeurs annoncés dans {@link Constants#FSMSELLER}.
+     */
     private class ParallelHandleBehaviour extends Behaviour {
         private int replies = 0;
 
@@ -75,6 +92,9 @@ public class BuyerAgent extends Agent implements Constants {
         }
     }
 
+    /**
+     * Affiche le motif d'un refus reçu d'un vendeur.
+     */
     private class RefuseBehaviour extends OneShotBehaviour {
         private final AID seller;
         private final String reason;
@@ -89,6 +109,10 @@ public class BuyerAgent extends Agent implements Constants {
         }
     }
 
+    /**
+     * Dernier état : sélection du vendeur proposant le prix le plus bas
+     * et envoi des réponses ACCEPT/REJECT correspondantes.
+     */
     private class ChooseBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
