@@ -46,9 +46,9 @@ public class SellerAgent extends Agent implements Constants {
         }, "END");
 
         // Transitions finales
-        fsm.registerTransition(REFUSING, "END", 0);
-        fsm.registerTransition(WINNING, "END", 0);
-        fsm.registerTransition(LOSING, "END", 0);
+        fsm.registerTransition(REFUSING, "END", ACLMessage.INFORM);
+        fsm.registerTransition(WINNING, "END", ACLMessage.INFORM);
+        fsm.registerTransition(LOSING, "END", ACLMessage.INFORM);
 
         addBehaviour(fsm);
     }
