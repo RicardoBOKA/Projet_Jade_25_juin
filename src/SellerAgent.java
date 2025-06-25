@@ -5,6 +5,11 @@ import jade.core.behaviours.OneShotBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
+/**
+ * Vendeur générique utilisé pour Lili, Lola, Jim et Lulu.
+ * Chaque agent suit une FSM où il attend un CFP, propose un prix ou refuse,
+ * puis apprend s'il a gagné ou perdu l'enchère.
+ */
 public class SellerAgent extends Agent implements Constants {
 
     private int price = -1;
@@ -14,6 +19,10 @@ public class SellerAgent extends Agent implements Constants {
     private static final String WINNING = "WINNING";
     private static final String LOSING = "LOSING";
 
+    /**
+     * Initialisation de la FSM du vendeur.
+     * Chaque état correspond à une étape du protocole d'enchère.
+     */
     @Override
     protected void setup() {
         FSMBehaviour fsm = new FSMBehaviour(this);
@@ -44,6 +53,9 @@ public class SellerAgent extends Agent implements Constants {
         addBehaviour(fsm);
     }
 
+    /**
+     * Gère la réception des messages suivant l'état courant du vendeur.
+     */
     private class HandleMessageBehaviour extends Behaviour {
         private final String state;
         private boolean finished = false;
@@ -91,6 +103,10 @@ public class SellerAgent extends Agent implements Constants {
             }
         }
 
+        /**
+         * Détermine le prix proposé par ce vendeur.
+         * Jim renvoie -1 pour simuler une indisponibilité.
+         */
         private void decidePrice() {
             switch (getLocalName()) {
                 case LILI: price = 2700; break;
@@ -108,12 +124,18 @@ public class SellerAgent extends Agent implements Constants {
         public int onEnd() { return exit; }
     }
 
+    /**
+     * État où le vendeur indique son impossibilité de participer.
+     */
     private static class RefuseBehaviour extends OneShotBehaviour {
         RefuseBehaviour(Agent a) { super(a); }
         @Override
         public void action() {}
     }
 
+    /**
+     * Affiche que ce vendeur a remporté l'enchère.
+     */
     private class WinnerBehaviour extends OneShotBehaviour {
         WinnerBehaviour(Agent a) { super(a); }
         @Override
@@ -122,6 +144,9 @@ public class SellerAgent extends Agent implements Constants {
         }
     }
 
+    /**
+     * Affiche que ce vendeur a perdu l'enchère.
+     */
     private class LoserBehaviour extends OneShotBehaviour {
         LoserBehaviour(Agent a) { super(a); }
         @Override

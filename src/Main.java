@@ -4,7 +4,16 @@ import jade.core.Runtime;
 import jade.wrapper.AgentContainer;
 import jade.wrapper.StaleProxyException;
 
+/**
+ * Point d'entrée de l'application.
+ * Démarre la plateforme JADE et crée les agents du scénario :
+ * un acheteur et quatre vendeurs.
+ */
+
 public class Main {
+    /**
+     * Lance la plateforme JADE et instancie tous les agents du scénario.
+     */
     public static void main(String[] args) {
         Runtime rt = Runtime.instance();
         ProfileImpl profile = new ProfileImpl();

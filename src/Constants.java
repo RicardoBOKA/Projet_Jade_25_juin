@@ -2,6 +2,10 @@ import jade.core.AID;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Ensemble des noms d'agents et de la liste des vendeurs utilisée par Jack.
+ */
+
 public interface Constants {
     String JACK = "Jack";
     String LILI = "Lili";
