@@ -83,6 +83,7 @@ public class SellerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + state);
             if (WAITING.equals(state)) {
                 template = MessageTemplate.and(
                         MessageTemplate.MatchPerformative(ACLMessage.CFP),
@@ -100,6 +101,10 @@ public class SellerAgent extends Agent implements Constants {
         public void action() {
             ACLMessage msg = myAgent.receive(template);
             if (msg != null) {
+                System.out.println(getLocalName() + " :: received " +
+                        ACLMessage.getPerformative(msg.getPerformative()) +
+                        " from " + msg.getSender().getLocalName() +
+                        " with content: " + msg.getContent());
                 doMessage(msg);
                 if (WAITING.equals(state)) {
                     ACLMessage reply = msg.createReply();
@@ -107,11 +112,17 @@ public class SellerAgent extends Agent implements Constants {
                     if (performative == ACLMessage.PROPOSE) {
                         reply.setContent(price);
                         exitCode = ACLMessage.PROPOSE;
+                        System.out.println(getLocalName() + " :: proposing price " + price);
                     } else {
                         reply.setContent("no stock");
                         exitCode = ACLMessage.REFUSE;
+                        System.out.println(getLocalName() + " :: no price provided, sending REFUSE");
                     }
                     myAgent.send(reply);
+                    System.out.println(getLocalName() + " :: sending " +
+                            ACLMessage.getPerformative(reply.getPerformative()) +
+                            " to " + msg.getSender().getLocalName() +
+                            " with content: " + reply.getContent());
                 } else if (PROPOSING.equals(state)) {
                     if (msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                         exitCode = ACLMessage.ACCEPT_PROPOSAL;
@@ -132,6 +143,7 @@ public class SellerAgent extends Agent implements Constants {
 
         @Override
         public int onEnd() {
+            System.out.println(getLocalName() + " :: exiting state: " + state + " with exit code: " + exitCode);
             return exitCode;
         }
     }
@@ -139,24 +151,57 @@ public class SellerAgent extends Agent implements Constants {
     /** Terminal behaviour for refusal state. */
     private static class RefuseBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(myAgent.getLocalName() + " :: entering state: " + REFUSING);
+        }
+        @Override
         public void action() {
             System.out.println(myAgent.getLocalName() + " :: out of stock.");
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(myAgent.getLocalName() + " :: exiting state: " + REFUSING + " with exit code: " + code);
+            return code;
         }
     }
 
     /** Terminal behaviour when winning the auction. */
     private class WinnerBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + WINNING);
+        }
+        @Override
         public void action() {
             System.out.println(getLocalName() + " :: wins with price " + price);
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: exiting state: " + WINNING + " with exit code: " + code);
+            return code;
         }
     }
 
     /** Terminal behaviour when losing the auction. */
     private class LoserBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + LOSING);
+        }
+        @Override
         public void action() {
             System.out.println(getLocalName() + " :: loses with price " + price);
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: exiting state: " + LOSING + " with exit code: " + code);
+            return code;
         }
     }
 }

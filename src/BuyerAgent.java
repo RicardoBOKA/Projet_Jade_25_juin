@@ -66,6 +66,11 @@ public class BuyerAgent extends Agent implements Constants {
      */
     private class CFPBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + CALLING);
+        }
+
+        @Override
         public void action() {
             ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
             for (AID aid : FSMSELLER) {
@@ -73,6 +78,21 @@ public class BuyerAgent extends Agent implements Constants {
             }
             cfp.setContent("Looking for a bike");
             send(cfp);
+            List<String> names = new ArrayList<>();
+            for (AID aid : FSMSELLER) {
+                names.add(aid.getLocalName());
+            }
+            System.out.println(getLocalName() + " :: sending " +
+                    ACLMessage.getPerformative(cfp.getPerformative()) +
+                    " to " + String.join(", ", names) +
+                    " with content: " + cfp.getContent());
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: exiting state: " + CALLING + " with exit code: " + code);
+            return code;
         }
     }
 
@@ -87,6 +107,7 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + WAITING);
             template = MessageTemplate.or(
                     MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
                     MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
@@ -98,6 +119,10 @@ public class BuyerAgent extends Agent implements Constants {
             if (msg != null) {
                 if (FSMSELLER.contains(msg.getSender())) {
                     replies++;
+                    System.out.println(getLocalName() + " :: received " +
+                            ACLMessage.getPerformative(msg.getPerformative()) +
+                            " from " + msg.getSender().getLocalName() +
+                            " with content: " + msg.getContent());
                     if (msg.getPerformative() == ACLMessage.PROPOSE) {
                         proposals.put(msg.getSender(), msg.getContent());
                     } else {
@@ -113,6 +138,13 @@ public class BuyerAgent extends Agent implements Constants {
         @Override
         public boolean done() {
             return replies >= FSMSELLER.size();
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: exiting state: " + WAITING + " with exit code: " + code);
+            return code;
         }
     }
 
@@ -139,6 +171,10 @@ public class BuyerAgent extends Agent implements Constants {
      */
     private class DecideBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(getLocalName() + " :: entering state: " + DECIDING);
+        }
+        @Override
         public void action() {
             AID winner = null;
             int best = Integer.MAX_VALUE;
@@ -149,6 +185,10 @@ public class BuyerAgent extends Agent implements Constants {
                     winner = e.getKey();
                 }
             }
+            if (winner != null) {
+                System.out.println(getLocalName() + " :: selected winner: " +
+                        winner.getLocalName() + " with price " + best);
+            }
             for (Map.Entry<AID, String> e : proposals.entrySet()) {
                 ACLMessage reply = new ACLMessage(e.getKey().equals(winner)
                         ? ACLMessage.ACCEPT_PROPOSAL
@@ -156,20 +196,36 @@ public class BuyerAgent extends Agent implements Constants {
                 reply.addReceiver(e.getKey());
                 reply.setContent(e.getValue());
                 send(reply);
+                System.out.println(getLocalName() + " :: sending " +
+                        ACLMessage.getPerformative(reply.getPerformative()) +
+                        " to " + e.getKey().getLocalName() +
+                        " with content: " + reply.getContent());
             }
         }
         @Override
         public int onEnd() {
-            // Trigger the transition to the terminal state of the FSM
-            return ACLMessage.INFORM;
+            int code = ACLMessage.INFORM;
+            System.out.println(getLocalName() + " :: exiting state: " + DECIDING + " with exit code: " + code);
+            return code;
         }
     }
 
     /** Terminal state printing the end of the protocol. */
     private static class EndBehaviour extends OneShotBehaviour {
         @Override
+        public void onStart() {
+            System.out.println(myAgent.getLocalName() + " :: entering state: " + END);
+        }
+        @Override
         public void action() {
             System.out.println("Jack :: auction finished.");
+        }
+
+        @Override
+        public int onEnd() {
+            int code = super.onEnd();
+            System.out.println(myAgent.getLocalName() + " :: exiting state: " + END + " with exit code: " + code);
+            return code;
         }
     }
 }
