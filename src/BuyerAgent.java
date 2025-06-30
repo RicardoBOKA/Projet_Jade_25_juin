@@ -34,6 +34,7 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: starting BuyerBehaviour FSM");
             registerFirstState(new CFPBehaviour(), CALLING);
             registerState(new ParallelHandleBehaviour(), WAITING);
             registerState(new DecideBehaviour(), DECIDING);
@@ -47,9 +48,9 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public int onEnd() {
-            return 0;
-            //myAgent.doDelete();
-            //return super.onEnd();
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: BuyerBehaviour finished with code " + code);
+            return code;
         }
     }
 
@@ -68,12 +69,23 @@ public class BuyerAgent extends Agent implements Constants {
     private class CFPBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println(getLocalName() + " :: entering state CALLING");
             ACLMessage cfp = new ACLMessage(ACLMessage.CFP);
             for (AID aid : FSMSELLER) {
                 cfp.addReceiver(aid);
             }
             cfp.setContent("Looking for a bike");
             send(cfp);
+            System.out.println(getLocalName() + " :: sent " + ACLMessage.getPerformative(cfp.getPerformative()) +
+                    " to sellers with content " + cfp.getContent());
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting state CALLING with code " + code);
+            System.out.println(getLocalName() + " :: FSM transitioning from CALLING to WAITING");
+            return code;
         }
     }
 
@@ -92,6 +104,7 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: entering state WAITING");
             template = MessageTemplate.or(
                     MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
                     MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
@@ -102,7 +115,10 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public int onEnd() {
-            return 0;
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting state WAITING with code " + code);
+            System.out.println(getLocalName() + " :: FSM transitioning from WAITING to DECIDING");
+            return code;
         }
     }
 
@@ -126,8 +142,12 @@ public class BuyerAgent extends Agent implements Constants {
             if (msg != null) {
                 if (msg.getPerformative() == ACLMessage.PROPOSE) {
                     proposals.put(seller, msg.getContent());
+                    System.out.println(getLocalName() + " :: received PROPOSE from " +
+                            seller.getLocalName() + " with content " + msg.getContent());
                 } else {
                     refusals.add(seller);
+                    System.out.println(getLocalName() + " :: received REFUSE from " +
+                            seller.getLocalName() + " with content " + msg.getContent());
                     addBehaviour(new RefuseBehaviour(seller, msg.getContent()));
                 }
                 received = true;
@@ -139,6 +159,14 @@ public class BuyerAgent extends Agent implements Constants {
         @Override
         public boolean done() {
             return received;
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting WaitReplyBehaviour for " +
+                    seller.getLocalName() + " with code " + code);
+            return code;
         }
     }
 
@@ -154,8 +182,16 @@ public class BuyerAgent extends Agent implements Constants {
         }
         @Override
         public void action() {
+            System.out.println(getLocalName() + " :: entering RefuseBehaviour");
             System.out.println(getLocalName() + " :: seller " + seller.getLocalName() +
                     " refused because " + reason);
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting RefuseBehaviour with code " + code);
+            return code;
         }
     }
 
@@ -166,6 +202,7 @@ public class BuyerAgent extends Agent implements Constants {
     private class DecideBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println(getLocalName() + " :: entering state DECIDING");
             AID winner = null;
             int best = Integer.MAX_VALUE;
             for (Map.Entry<AID, String> e : proposals.entrySet()) {
@@ -182,12 +219,17 @@ public class BuyerAgent extends Agent implements Constants {
                 reply.addReceiver(e.getKey());
                 reply.setContent(e.getValue());
                 send(reply);
+                System.out.println(getLocalName() + " :: sent " + ACLMessage.getPerformative(reply.getPerformative()) +
+                        " to " + e.getKey().getLocalName() + " with content " + reply.getContent());
             }
         }
         @Override
         public int onEnd() {
             // Trigger the transition to the terminal state of the FSM
-            return ACLMessage.INFORM;
+            int code = ACLMessage.INFORM;
+            System.out.println(getLocalName() + " :: exiting state DECIDING with code " + code);
+            System.out.println(getLocalName() + " :: FSM transitioning from DECIDING to END");
+            return code;
         }
     }
 
@@ -195,7 +237,15 @@ public class BuyerAgent extends Agent implements Constants {
     private static class EndBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println("Jack :: entering state END");
             System.out.println("Jack :: auction finished.");
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println("Jack :: exiting state END with code " + code);
+            return code;
         }
     }
 }
