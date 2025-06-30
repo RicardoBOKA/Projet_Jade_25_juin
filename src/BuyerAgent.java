@@ -133,5 +133,10 @@ public class BuyerAgent extends Agent implements Constants {
                 myAgent.send(reply);
             }
         }
+        @Override
+        public int onEnd() {
+            // Trigger the transition to the terminal state of the FSM
+            return ACLMessage.INFORM;
+        }
     }
 }
