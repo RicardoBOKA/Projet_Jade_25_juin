@@ -7,16 +7,12 @@ import java.util.List;
  */
 
 public interface Constants {
-    String JACK = "Jack";
-    String LILI = "Lili";
-    String LOLA = "Lola";
-    String JIM  = "Jim";
-    String LULU = "Lulu";
+    AID JACK = new AID("JACK", AID.ISLOCALNAME);
+    AID LILI = new AID("LILI", AID.ISLOCALNAME);
+    AID LOLA = new AID("Lola", AID.ISLOCALNAME);
+    AID JIM  = new AID("JIM", AID.ISLOCALNAME);
+    AID LULU = new AID("LULU", AID.ISLOCALNAME);
+    AID BUYER=JACK;
     String AGENT_INFO = " Agent :: ";
-    List<AID> FSMSELLER = new ArrayList<>(List.of(
-            new AID(LOLA, AID.ISLOCALNAME),
-            new AID(LILI, AID.ISLOCALNAME),
-            new AID(JIM, AID.ISLOCALNAME),
-            new AID(LULU, AID.ISLOCALNAME)
-    ));
+    List<AID> FSMSELLER = new ArrayList<>(List.of(LOLA, LILI, JIM, LULU));
 }

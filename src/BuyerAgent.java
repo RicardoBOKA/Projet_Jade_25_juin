@@ -28,6 +28,7 @@ public class BuyerAgent extends Agent implements Constants {
     @Override
     protected void setup() {
         FSMBehaviour fsm = new FSMBehaviour(this);
+
         fsm.registerFirstState(new CFPBehaviour(), CALLING);
         fsm.registerState(new ParallelHandleBehaviour(), WAITING);
         fsm.registerState(new ChooseBehaviour(), DECIDING);
@@ -42,7 +43,7 @@ public class BuyerAgent extends Agent implements Constants {
         fsm.registerDefaultTransition(CALLING, WAITING);
         fsm.registerDefaultTransition(WAITING, DECIDING);
 
-        fsm.registerTransition(DECIDING, "END", 0);
+        fsm.registerTransition(DECIDING, "END", ACLMessage.INFORM);
 
         addBehaviour(fsm);
     }
