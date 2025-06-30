@@ -1,4 +1,5 @@
 import jade.core.Agent;
+import jade.core.AID;
 import jade.core.behaviours.FSMBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
@@ -118,8 +119,10 @@ public class SellerAgent extends Agent implements Constants {
                         exitCode = ACLMessage.REFUSE;
                     }
                     myAgent.send(reply);
-                    System.out.println(getLocalName() + " :: sent " + ACLMessage.getPerformative(reply.getPerformative()) +
-                            " to " + reply.getAllReceiver().next().getLocalName() + " with content " + reply.getContent());
+                    System.out.println(getLocalName() + " :: sent " +
+                            ACLMessage.getPerformative(reply.getPerformative()) +
+                            " to " + ((AID) reply.getAllReceiver().next()).getLocalName() +
+                            " with content " + reply.getContent());
                 } else if (PROPOSING.equals(state)) {
                     System.out.println(getLocalName() + " :: received " + ACLMessage.getPerformative(msg.getPerformative()) +
                             " from " + msg.getSender().getLocalName() + " with content " + msg.getContent());
