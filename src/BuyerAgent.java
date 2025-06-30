@@ -3,6 +3,7 @@ import jade.core.AID;
 import jade.core.behaviours.FSMBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
 import jade.core.behaviours.SimpleBehaviour;
+import jade.core.behaviours.ParallelBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.*;
@@ -34,7 +35,7 @@ public class BuyerAgent extends Agent implements Constants {
         @Override
         public void onStart() {
             registerFirstState(new CFPBehaviour(), CALLING);
-            registerState(new HandleRepliesBehaviour(), WAITING);
+            registerState(new ParallelHandleBehaviour(), WAITING);
             registerState(new DecideBehaviour(), DECIDING);
             registerLastState(new EndBehaviour(), END);
 
@@ -77,34 +78,57 @@ public class BuyerAgent extends Agent implements Constants {
     }
 
     /**
-     * Collecte toutes les réponses des vendeurs.
-     * Cet état reste actif jusqu'à avoir reçu autant de messages
-     * qu'il y a de vendeurs annoncés dans {@link Constants#FSMSELLER}.
+     * Collecte les réponses des vendeurs en parallèle. Un sous-comportement
+     * {@link WaitReplyBehaviour} est ajouté pour chaque vendeur afin de
+     * recevoir sa réponse sans bloquer les autres. Le ParallelBehaviour se
+     * termine lorsque toutes les réponses ont été traitées.
      */
-    private class HandleRepliesBehaviour extends SimpleBehaviour {
-        private int replies;
+    private class ParallelHandleBehaviour extends ParallelBehaviour {
         private MessageTemplate template;
+
+        ParallelHandleBehaviour() {
+            super(WHEN_ALL);
+        }
 
         @Override
         public void onStart() {
             template = MessageTemplate.or(
                     MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
                     MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
+            for (AID seller : FSMSELLER) {
+                addSubBehaviour(new WaitReplyBehaviour(seller));
+            }
+        }
+
+        @Override
+        public int onEnd() {
+            return 0;
+        }
+    }
+
+    /** Behaviour waiting a reply from a single seller. */
+    private class WaitReplyBehaviour extends SimpleBehaviour {
+        private final AID seller;
+        private boolean received;
+
+        WaitReplyBehaviour(AID seller) {
+            this.seller = seller;
         }
 
         @Override
         public void action() {
-            ACLMessage msg = myAgent.receive(template);
+            MessageTemplate mt = MessageTemplate.and(
+                    template,
+                    MessageTemplate.MatchSender(seller));
+            ACLMessage msg = myAgent.receive(mt);
             if (msg != null) {
-                if (FSMSELLER.contains(msg.getSender())) {
-                    replies++;
-                    if (msg.getPerformative() == ACLMessage.PROPOSE) {
-                        proposals.put(msg.getSender(), msg.getContent());
-                    } else {
-                        refusals.add(msg.getSender());
-                        addBehaviour(new RefuseBehaviour(msg.getSender(), msg.getContent()));
-                    }
+                if (msg.getPerformative() == ACLMessage.PROPOSE) {
+                    proposals.put(seller, msg.getContent());
+                } else {
+                    refusals.add(seller);
+                    addBehaviour(new RefuseBehaviour(seller, msg.getContent()));
                 }
+                received = true;
             } else {
                 block();
             }
@@ -112,7 +136,7 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public boolean done() {
-            return replies >= FSMSELLER.size();
+            return received;
         }
     }
 
