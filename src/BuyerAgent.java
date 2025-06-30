@@ -96,7 +96,7 @@ public class BuyerAgent extends Agent implements Constants {
                     MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
                     MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
             for (AID seller : FSMSELLER) {
-                addSubBehaviour(new WaitReplyBehaviour(seller));
+                addSubBehaviour(new WaitReplyBehaviour(seller, template));
             }
         }
 
@@ -109,10 +109,12 @@ public class BuyerAgent extends Agent implements Constants {
     /** Behaviour waiting a reply from a single seller. */
     private class WaitReplyBehaviour extends SimpleBehaviour {
         private final AID seller;
+        private final MessageTemplate template;
         private boolean received;
 
-        WaitReplyBehaviour(AID seller) {
+        WaitReplyBehaviour(AID seller, MessageTemplate template) {
             this.seller = seller;
+            this.template = template;
         }
 
         @Override
