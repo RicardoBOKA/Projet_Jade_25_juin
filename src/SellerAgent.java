@@ -1,19 +1,18 @@
 import jade.core.Agent;
-import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.FSMBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.SimpleBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 
 /**
- * Vendeur générique utilisé pour Lili, Lola, Jim et Lulu.
- * Chaque agent suit une FSM où il attend un CFP, propose un prix ou refuse,
- * puis apprend s'il a gagné ou perdu l'enchère.
+ * Generic seller agent participating in a one-shot auction protocol.
  */
 public class SellerAgent extends Agent implements Constants {
 
     private String price;
     private int performative = ACLMessage.PROPOSE;
+    private ACLMessage lastMessage;
 
     private static final String WAITING = "WAITING";
     private static final String PROPOSING = "PROPOSING";
@@ -21,209 +20,143 @@ public class SellerAgent extends Agent implements Constants {
     private static final String WINNING = "WINNING";
     private static final String LOSING = "LOSING";
 
-    /**
-     * Initialisation de la FSM du vendeur.
-     * Chaque état correspond à une étape du protocole d'enchère.
-     */
     @Override
     protected void setup() {
-        super.setup();
-        addBehaviour(new SellerBehaviour(this));
         doArguments();
-
-        /* Onstart SellerBehaviour
-        fsm.registerFirstState(new HandleMessageBehaviour(WAITING), WAITING);
-        fsm.registerState(new HandleMessageBehaviour(PROPOSING), PROPOSING);
-        fsm.registerState(new RefuseBehaviour(this), REFUSING);
-        fsm.registerState(new WinnerBehaviour(this), WINNING);
-        fsm.registerState(new LoserBehaviour(this), LOSING);
-
-        // Transitions normales
-        fsm.registerTransition(WAITING, PROPOSING, ACLMessage.CFP*getPerformative());
-        fsm.registerTransition(WAITING, REFUSING, ACLMessage.CFP*getPerformative());
-        fsm.registerTransition(WAITING, WINNING, ACLMessage.ACCEPT_PROPOSAL*getPerformative());
-        fsm.registerTransition(WAITING, LOSING, ACLMessage.REJECT_PROPOSAL*getPerformative());
-
-        // État final
-        fsm.registerLastState(new OneShotBehaviour() {
-            public void action() {
-                System.out.println(getLocalName() + " :: FSM terminé.");
-            }
-        }, "END");
-
-        // Transitions finales
-        fsm.registerTransition(REFUSING, "END", ACLMessage.INFORM);
-        fsm.registerTransition(WINNING, "END", ACLMessage.INFORM);
-        fsm.registerTransition(LOSING, "END", ACLMessage.INFORM);
-
-
-        */
-
+        addBehaviour(new SellerBehaviour(this));
     }
 
+    private void doArguments() {
+        Object[] args = getArguments();
+        if (args != null && args.length > 0) {
+            price = args[0].toString();
+        } else {
+            performative = ACLMessage.REFUSE;
+        }
+    }
+
+    private void doMessage(ACLMessage msg) {
+        lastMessage = msg;
+    }
+
+    /**
+     * FSM controlling the seller life cycle.
+     */
     private class SellerBehaviour extends FSMBehaviour {
-
-        private ACLMessage receivedMessage;
-
-        public SellerBehaviour(SellerAgent sellerAgent) {
+        SellerBehaviour(Agent a) {
+            super(a);
         }
 
-        private void doArguments() {
-            Object[] args = getArguments(); //Tableau d'objets
+        @Override
+        public void onStart() {
+            registerFirstState(new HandleMessageBehaviour(WAITING), WAITING);
+            registerState(new HandleMessageBehaviour(PROPOSING), PROPOSING);
+            registerLastState(new RefuseBehaviour(), REFUSING);
+            registerLastState(new WinnerBehaviour(), WINNING);
+            registerLastState(new LoserBehaviour(), LOSING);
 
-            //et ici ou l'on traite
-            //si arg de 0 est passé ca veut dire qu'on a recupere le prix et donc on setPrice()
-            // et ca veut dire que la performative inherente de mon vendeur c'est de faire un PROPOSE (s'il a un prix il propose, sinon il refuse)
-
+            registerTransition(WAITING, PROPOSING, ACLMessage.PROPOSE);
+            registerTransition(WAITING, REFUSING, ACLMessage.REFUSE);
+            registerTransition(PROPOSING, WINNING, ACLMessage.ACCEPT_PROPOSAL);
+            registerTransition(PROPOSING, LOSING, ACLMessage.REJECT_PROPOSAL);
         }
 
-        //changer en simple behavior
+        @Override
+        public int onEnd() {
+            myAgent.doDelete();
+            return super.onEnd();
+        }
+    }
 
-        /**
-         * Gère la réception des messages suivant l'état courant du vendeur.
-         */
-        private class HandleMessageBehaviour extends Behaviour {
-            private final String state;
-            private MessageTemplate template;
-            private boolean finished = false;
-            private int exit = 0;
+    /**
+     * Behaviour handling messages according to the current state.
+     */
+    private class HandleMessageBehaviour extends SimpleBehaviour {
+        private final String state;
+        private MessageTemplate template;
+        private boolean finished;
+        private int exitCode;
 
-            HandleMessageBehaviour(String state) {
-                this.state = state;
-            }
+        HandleMessageBehaviour(String state) {
+            this.state = state;
+        }
 
-            //onStart() preparation template (CFP ou ACCEPT ou REJECT ) et Buyer
-            @Override
-            public void action() {
-                ACLMessage msg = myAgent.receive(template);
-                if (msg != null) {
-                    doMessage(msg);
-                } else {
-                    block();
-                }
-            }
-
-            private void doMessage(ACLMessage msg) {
-
-            }
-        /*
+        @Override
+        public void onStart() {
             if (WAITING.equals(state)) {
-                ACLMessage msg = myAgent.receive(MessageTemplate.MatchPerformative(ACLMessage.CFP));
-                if (msg != null) {
-                    decidePrice();
-                    if (price < 0) {
-                        ACLMessage reply = msg.createReply();
-                        reply.setPerformative(ACLMessage.REFUSE);
-                        reply.setContent("rupture de stock");
-                        myAgent.send(reply);
-                        exit = ACLMessage.REFUSE;
-                        finished = true;
-                    } else {
-                        ACLMessage reply = msg.createReply();
-                        reply.setPerformative(ACLMessage.PROPOSE);
-                        reply.setContent(String.valueOf(price));
-                        myAgent.send(reply);
-                        exit = ACLMessage.PROPOSE;
-                        finished = true;
-                    }
-                } else {
-                    block();
-                }
+                template = MessageTemplate.and(
+                        MessageTemplate.MatchPerformative(ACLMessage.CFP),
+                        MessageTemplate.MatchSender(JACK));
             } else if (PROPOSING.equals(state)) {
-                ACLMessage msg = myAgent.receive(MessageTemplate.or(
-                        MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL),
-                        MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL)));
-                if (msg != null) {
-                    if (msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
-                        exit = ACLMessage.ACCEPT_PROPOSAL;
+                template = MessageTemplate.and(
+                        MessageTemplate.or(
+                                MessageTemplate.MatchPerformative(ACLMessage.ACCEPT_PROPOSAL),
+                                MessageTemplate.MatchPerformative(ACLMessage.REJECT_PROPOSAL)),
+                        MessageTemplate.MatchSender(JACK));
+            }
+        }
+
+        @Override
+        public void action() {
+            ACLMessage msg = myAgent.receive(template);
+            if (msg != null) {
+                doMessage(msg);
+                if (WAITING.equals(state)) {
+                    ACLMessage reply = msg.createReply();
+                    reply.setPerformative(performative);
+                    if (performative == ACLMessage.PROPOSE) {
+                        reply.setContent(price);
+                        exitCode = ACLMessage.PROPOSE;
                     } else {
-                        exit = ACLMessage.REJECT_PROPOSAL;
+                        reply.setContent("no stock");
+                        exitCode = ACLMessage.REFUSE;
                     }
-                    finished = true;
-                } else {
-                    block();
+                    myAgent.send(reply);
+                } else if (PROPOSING.equals(state)) {
+                    if (msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
+                        exitCode = ACLMessage.ACCEPT_PROPOSAL;
+                    } else {
+                        exitCode = ACLMessage.REJECT_PROPOSAL;
+                    }
                 }
+                finished = true;
+            } else {
+                block();
             }
         }
 
-         */
-
-            //Mettre dans le main
-
-            /**
-             * Détermine le prix proposé par ce vendeur.
-             * Jim renvoie -1 pour simuler une indisponibilité.
-             */
-            private void decidePrice() {
-                switch (getLocalName()) {
-                    case LILI:
-                        price = 2700;
-                        break;
-                    case LOLA:
-                        price = 2800;
-                        break;
-                    case JIM:
-                        price = -1;
-                        break;
-                    case LULU:
-                        price = 2400;
-                        break;
-                    default:
-                        price = 9999;
-                        break;
-                }
-            }
-
-            @Override
-            public boolean done() {
-                return finished;
-            }
-
-            @Override
-            public int onEnd() {
-                return exit;
-            }
+        @Override
+        public boolean done() {
+            return finished;
         }
 
-        /**
-         * État où le vendeur indique son impossibilité de participer.
-         */
-        private static class RefuseBehaviour extends OneShotBehaviour {
-            RefuseBehaviour(Agent a) {
-                super(a);
-            }
-
-            @Override
-            public void action() {
-            }
+        @Override
+        public int onEnd() {
+            return exitCode;
         }
+    }
 
-        /**
-         * Affiche que ce vendeur a remporté l'enchère.
-         */
-        private class WinnerBehaviour extends OneShotBehaviour {
-            WinnerBehaviour(Agent a) {
-                super(a);
-            }
-
-            @Override
-            public void action() {
-                System.out.println("action :: agent " + getLocalName() + " is a great winner with a price equals to " + price);
-            }
+    /** Terminal behaviour for refusal state. */
+    private static class RefuseBehaviour extends OneShotBehaviour {
+        @Override
+        public void action() {
+            System.out.println(getLocalName() + " :: out of stock.");
         }
+    }
 
-        /**
-         * Affiche que ce vendeur a perdu l'enchère.
-         */
-        private class LoserBehaviour extends OneShotBehaviour {
-            LoserBehaviour(Agent a) {
-                super(a);
-            }
+    /** Terminal behaviour when winning the auction. */
+    private class WinnerBehaviour extends OneShotBehaviour {
+        @Override
+        public void action() {
+            System.out.println(getLocalName() + " :: wins with price " + price);
+        }
+    }
 
-            @Override
-            public void action() {
-                System.out.println("action :: agent " + getLocalName() + " is a pity loser with a price equals to " + price);
-            }
+    /** Terminal behaviour when losing the auction. */
+    private class LoserBehaviour extends OneShotBehaviour {
+        @Override
+        public void action() {
+            System.out.println(getLocalName() + " :: loses with price " + price);
         }
     }
 }
