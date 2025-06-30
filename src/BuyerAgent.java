@@ -1,8 +1,8 @@
 import jade.core.Agent;
 import jade.core.AID;
-import jade.core.behaviours.Behaviour;
 import jade.core.behaviours.FSMBehaviour;
 import jade.core.behaviours.OneShotBehaviour;
+import jade.core.behaviours.SimpleBehaviour;
 import jade.lang.acl.ACLMessage;
 import jade.lang.acl.MessageTemplate;
 import java.util.*;
@@ -15,37 +15,48 @@ import java.util.*;
  */
 public class BuyerAgent extends Agent implements Constants {
 
-    private final Map<AID, Integer> proposals = new HashMap<>();
+    private final Map<AID, String> proposals = new HashMap<>();
     private final Set<AID> refusals = new HashSet<>();
 
     private static final String CALLING = "CALLING";
     private static final String WAITING = "WAITING";
     private static final String DECIDING = "DECIDING";
+    private static final String END = "END";
 
     /**
-     * Construit la FSM et lance le protocole d'enchère.
+     * Finite state machine controlling the buyer protocol.
+     */
+    private class BuyerBehaviour extends FSMBehaviour {
+        BuyerBehaviour(Agent a) {
+            super(a);
+        }
+
+        @Override
+        public void onStart() {
+            registerFirstState(new CFPBehaviour(), CALLING);
+            registerState(new HandleRepliesBehaviour(), WAITING);
+            registerState(new DecideBehaviour(), DECIDING);
+            registerLastState(new EndBehaviour(), END);
+
+            registerTransition(CALLING, WAITING, 0);
+            registerTransition(WAITING, DECIDING, 0);
+            registerTransition(DECIDING, END, 0);
+        }
+
+        @Override
+        public int onEnd() {
+            myAgent.doDelete();
+            return super.onEnd();
+        }
+    }
+
+    /**
+     * Initialise l'agent en ajoutant la FSM qui gère le protocole
+     * d'enchère.
      */
     @Override
     protected void setup() {
-        FSMBehaviour fsm = new FSMBehaviour(this);
-
-        fsm.registerFirstState(new CFPBehaviour(), CALLING);
-        fsm.registerState(new ParallelHandleBehaviour(), WAITING);
-        fsm.registerState(new ChooseBehaviour(), DECIDING);
-
-        fsm.registerLastState(new OneShotBehaviour() {
-            @Override
-            public void action() {
-                System.out.println("Jack :: auction finished.");
-            }
-        }, "END");
-
-        fsm.registerDefaultTransition(CALLING, WAITING);
-        fsm.registerDefaultTransition(WAITING, DECIDING);
-
-        fsm.registerTransition(DECIDING, "END", ACLMessage.INFORM);
-
-        addBehaviour(fsm);
+        addBehaviour(new BuyerBehaviour(this));
     }
 
     /**
@@ -59,7 +70,7 @@ public class BuyerAgent extends Agent implements Constants {
                 cfp.addReceiver(aid);
             }
             cfp.setContent("Looking for a bike");
-            myAgent.send(cfp);
+            send(cfp);
         }
     }
 
@@ -68,19 +79,29 @@ public class BuyerAgent extends Agent implements Constants {
      * Cet état reste actif jusqu'à avoir reçu autant de messages
      * qu'il y a de vendeurs annoncés dans {@link Constants#FSMSELLER}.
      */
-    private class ParallelHandleBehaviour extends Behaviour {
-        private int replies = 0;
+    private class HandleRepliesBehaviour extends SimpleBehaviour {
+        private int replies;
+        private MessageTemplate template;
+
+        @Override
+        public void onStart() {
+            template = MessageTemplate.or(
+                    MessageTemplate.MatchPerformative(ACLMessage.PROPOSE),
+                    MessageTemplate.MatchPerformative(ACLMessage.REFUSE));
+        }
 
         @Override
         public void action() {
-            ACLMessage msg = myAgent.receive();
+            ACLMessage msg = myAgent.receive(template);
             if (msg != null) {
-                replies++;
-                if (msg.getPerformative() == ACLMessage.PROPOSE) {
-                    proposals.put(msg.getSender(), Integer.parseInt(msg.getContent()));
-                } else if (msg.getPerformative() == ACLMessage.REFUSE) {
-                    refusals.add(msg.getSender());
-                    addBehaviour(new RefuseBehaviour(msg.getSender(), msg.getContent()));
+                if (FSMSELLER.contains(msg.getSender())) {
+                    replies++;
+                    if (msg.getPerformative() == ACLMessage.PROPOSE) {
+                        proposals.put(msg.getSender(), msg.getContent());
+                    } else {
+                        refusals.add(msg.getSender());
+                        addBehaviour(new RefuseBehaviour(msg.getSender(), msg.getContent()));
+                    }
                 }
             } else {
                 block();
@@ -89,7 +110,7 @@ public class BuyerAgent extends Agent implements Constants {
 
         @Override
         public boolean done() {
-            return replies == FSMSELLER.size();
+            return replies >= FSMSELLER.size();
         }
     }
 
@@ -114,24 +135,34 @@ public class BuyerAgent extends Agent implements Constants {
      * Dernier état : sélection du vendeur proposant le prix le plus bas
      * et envoi des réponses ACCEPT/REJECT correspondantes.
      */
-    private class ChooseBehaviour extends OneShotBehaviour {
+    private class DecideBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
             AID winner = null;
             int best = Integer.MAX_VALUE;
-            for (Map.Entry<AID, Integer> e : proposals.entrySet()) {
-                if (e.getValue() < best) {
-                    best = e.getValue();
+            for (Map.Entry<AID, String> e : proposals.entrySet()) {
+                int price = Integer.parseInt(e.getValue());
+                if (price < best) {
+                    best = price;
                     winner = e.getKey();
                 }
             }
-            for (Map.Entry<AID, Integer> e : proposals.entrySet()) {
-                ACLMessage reply = new ACLMessage(e.getKey().equals(winner) ?
-                        ACLMessage.ACCEPT_PROPOSAL : ACLMessage.REJECT_PROPOSAL);
+            for (Map.Entry<AID, String> e : proposals.entrySet()) {
+                ACLMessage reply = new ACLMessage(e.getKey().equals(winner)
+                        ? ACLMessage.ACCEPT_PROPOSAL
+                        : ACLMessage.REJECT_PROPOSAL);
                 reply.addReceiver(e.getKey());
-                reply.setContent(String.valueOf(e.getValue()));
-                myAgent.send(reply);
+                reply.setContent(e.getValue());
+                send(reply);
             }
+        }
+    }
+
+    /** Terminal state printing the end of the protocol. */
+    private static class EndBehaviour extends OneShotBehaviour {
+        @Override
+        public void action() {
+            System.out.println("Jack :: auction finished.");
         }
     }
 }
