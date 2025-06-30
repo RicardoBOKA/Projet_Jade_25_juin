@@ -40,13 +40,15 @@ public class BuyerAgent extends Agent implements Constants {
 
             registerTransition(CALLING, WAITING, 0);
             registerTransition(WAITING, DECIDING, 0);
-            registerTransition(DECIDING, END, 0);
+            registerDefaultTransition(DECIDING, END);
+            //registerTransition(DECIDING, END, 0);
         }
 
         @Override
         public int onEnd() {
-            myAgent.doDelete();
-            return super.onEnd();
+            return 0;
+            //myAgent.doDelete();
+            //return super.onEnd();
         }
     }
 
