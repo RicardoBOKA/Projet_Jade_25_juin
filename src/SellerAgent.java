@@ -140,7 +140,7 @@ public class SellerAgent extends Agent implements Constants {
     private static class RefuseBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
-            System.out.println(getLocalName() + " :: out of stock.");
+            System.out.println(myAgent.getLocalName() + " :: out of stock.");
         }
     }
 

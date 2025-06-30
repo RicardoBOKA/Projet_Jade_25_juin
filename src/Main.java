@@ -19,11 +19,11 @@ public class Main {
         ProfileImpl profile = new ProfileImpl();
         AgentContainer container = rt.createMainContainer(profile);
         try {
-            container.createNewAgent(Constants.JACK, BuyerAgent.class.getName(), null).start();
-            container.createNewAgent(Constants.LILI, SellerAgent.class.getName(), new Object[]{"2700"}).start();
-            container.createNewAgent(Constants.LOLA, SellerAgent.class.getName(), new Object[]{"2800"}).start();
-            container.createNewAgent(Constants.JIM, SellerAgent.class.getName(), null).start();
-            container.createNewAgent(Constants.LULU, SellerAgent.class.getName(), new Object[]{"2400"}).start();
+            container.createNewAgent(Constants.JACK.getLocalName(), BuyerAgent.class.getName(), null).start();
+            container.createNewAgent(Constants.LILI.getLocalName(), SellerAgent.class.getName(), new Object[]{"2700"}).start();
+            container.createNewAgent(Constants.LOLA.getLocalName(), SellerAgent.class.getName(), new Object[]{"2800"}).start();
+            container.createNewAgent(Constants.JIM.getLocalName(), SellerAgent.class.getName(), null).start();
+            container.createNewAgent(Constants.LULU.getLocalName(), SellerAgent.class.getName(), new Object[]{"2400"}).start();
         } catch (StaleProxyException e) {
             e.printStackTrace();
         }
