@@ -49,6 +49,7 @@ public class SellerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: starting SellerBehaviour FSM");
             registerFirstState(new HandleMessageBehaviour(WAITING), WAITING);
             registerState(new HandleMessageBehaviour(PROPOSING), PROPOSING);
             registerLastState(new RefuseBehaviour(), REFUSING);
@@ -64,7 +65,9 @@ public class SellerAgent extends Agent implements Constants {
         @Override
         public int onEnd() {
             myAgent.doDelete();
-            return super.onEnd();
+            int code = super.onEnd();
+            System.out.println(getLocalName() + " :: SellerBehaviour finished with code " + code);
+            return code;
         }
     }
 
@@ -83,6 +86,7 @@ public class SellerAgent extends Agent implements Constants {
 
         @Override
         public void onStart() {
+            System.out.println(getLocalName() + " :: entering state " + state);
             if (WAITING.equals(state)) {
                 template = MessageTemplate.and(
                         MessageTemplate.MatchPerformative(ACLMessage.CFP),
@@ -102,6 +106,8 @@ public class SellerAgent extends Agent implements Constants {
             if (msg != null) {
                 doMessage(msg);
                 if (WAITING.equals(state)) {
+                    System.out.println(getLocalName() + " :: received " + ACLMessage.getPerformative(msg.getPerformative()) +
+                            " from " + msg.getSender().getLocalName() + " with content " + msg.getContent());
                     ACLMessage reply = msg.createReply();
                     reply.setPerformative(performative);
                     if (performative == ACLMessage.PROPOSE) {
@@ -112,7 +118,11 @@ public class SellerAgent extends Agent implements Constants {
                         exitCode = ACLMessage.REFUSE;
                     }
                     myAgent.send(reply);
+                    System.out.println(getLocalName() + " :: sent " + ACLMessage.getPerformative(reply.getPerformative()) +
+                            " to " + reply.getAllReceiver().next().getLocalName() + " with content " + reply.getContent());
                 } else if (PROPOSING.equals(state)) {
+                    System.out.println(getLocalName() + " :: received " + ACLMessage.getPerformative(msg.getPerformative()) +
+                            " from " + msg.getSender().getLocalName() + " with content " + msg.getContent());
                     if (msg.getPerformative() == ACLMessage.ACCEPT_PROPOSAL) {
                         exitCode = ACLMessage.ACCEPT_PROPOSAL;
                     } else {
@@ -132,6 +142,14 @@ public class SellerAgent extends Agent implements Constants {
 
         @Override
         public int onEnd() {
+            System.out.println(getLocalName() + " :: exiting state " + state + " with code " + exitCode);
+            if (WAITING.equals(state)) {
+                System.out.println(getLocalName() + " :: FSM transitioning from WAITING to " +
+                        (exitCode == ACLMessage.PROPOSE ? PROPOSING : REFUSING));
+            } else if (PROPOSING.equals(state)) {
+                System.out.println(getLocalName() + " :: FSM transitioning from PROPOSING to " +
+                        (exitCode == ACLMessage.ACCEPT_PROPOSAL ? WINNING : LOSING));
+            }
             return exitCode;
         }
     }
@@ -140,7 +158,15 @@ public class SellerAgent extends Agent implements Constants {
     private static class RefuseBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println(myAgent.getLocalName() + " :: entering state REFUSING");
             System.out.println(myAgent.getLocalName() + " :: out of stock.");
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(myAgent.getLocalName() + " :: exiting state REFUSING with code " + code);
+            return code;
         }
     }
 
@@ -148,7 +174,15 @@ public class SellerAgent extends Agent implements Constants {
     private class WinnerBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println(getLocalName() + " :: entering state WINNING");
             System.out.println(getLocalName() + " :: wins with price " + price);
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting state WINNING with code " + code);
+            return code;
         }
     }
 
@@ -156,7 +190,15 @@ public class SellerAgent extends Agent implements Constants {
     private class LoserBehaviour extends OneShotBehaviour {
         @Override
         public void action() {
+            System.out.println(getLocalName() + " :: entering state LOSING");
             System.out.println(getLocalName() + " :: loses with price " + price);
+        }
+
+        @Override
+        public int onEnd() {
+            int code = 0;
+            System.out.println(getLocalName() + " :: exiting state LOSING with code " + code);
+            return code;
         }
     }
 }
